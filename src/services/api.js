@@ -1,4 +1,4 @@
-const BASE = 'http://localhost:8080/api';
+const BASE = import.meta.env.VITE_API_URL;
 
 const headers = () => ({
   'Content-Type': 'application/json',
