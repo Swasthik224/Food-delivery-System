@@ -14,7 +14,7 @@ const req = async (url, options = {}) => {
 export const api = {
   // Auth
   login: (data) =>
-    fetch(`${BASE}/auth/login`, {
+    fetch(`${BASE}/api/auth/login`,{
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -24,7 +24,7 @@ export const api = {
     }),
 
   register: (data) =>
-    fetch(`${BASE}/auth/register`, {
+    fetch(`${BASE}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -34,7 +34,7 @@ export const api = {
     }),
 
   // Restaurants
-  getRestaurants: () => req('/restaurants'),
+  getRestaurants: () => req('/api/restaurants'),
 
   // ✅ FIXED MENU API
   getMenu: (id) => req(`/restaurants/${id}/menu`),
