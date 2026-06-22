@@ -18,47 +18,44 @@ export default function AuthPage() {
   });
 
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
   const { login } = useContext(AuthContext);
 
   const navigate = useNavigate();
 
-  // ✅ HANDLE INPUT
   const handleChange = (e) => {
-
     setForm({
       ...form,
       [e.target.name]: e.target.value
     });
-
   };
 
-  // ✅ LOGIN / REGISTER
   const handleSubmit = async (e) => {
-
     e.preventDefault();
 
     setError('');
+    setSuccessMessage('');
     setLoading(true);
 
     try {
+      if (mode === 'forgot-password') {
+        await api.forgotPassword({ email: form.email });
+        setSuccessMessage('A password reset link has been sent to your email.');
+        return;
+      }
 
       let data;
 
-      // LOGIN
       if (mode === 'login') {
-
         data = await api.login({
           email: form.email,
           password: form.password
         });
-
       }
 
-      // REGISTER
       else {
-
         data = await api.register({
           name: form.name,
           email: form.email,
@@ -66,68 +63,43 @@ export default function AuthPage() {
           phone: form.phone,
           address: form.address
         });
-
       }
 
-      // SAVE USER
       login(data.token, data);
 
-      // ROLE BASED NAVIGATION
       if (data.role === 'ADMIN') {
-
         navigate('/admin');
-
       }
 
-      else if (
-        data.role === 'RESTAURANT_OWNER'
-      ) {
-
+      else if (data.role === 'RESTAURANT_OWNER') {
         navigate('/owner');
-
       }
 
       else {
-
         navigate('/');
-
       }
 
     }
 
     catch (err) {
-
       setError(
+        err.response?.data?.message ||
         err.message ||
         'Something went wrong. Please try again.'
       );
-
     }
 
     finally {
-
       setLoading(false);
-
     }
   };
 
-  // ✅ GOOGLE LOGIN
-  const handleGoogleSuccess = (
-    credentialResponse
-  ) => {
-
+  const handleGoogleSuccess = (credentialResponse) => {
     try {
+      const googleUser = jwtDecode(credentialResponse.credential);
 
-      const googleUser = jwtDecode(
-        credentialResponse.credential
-      );
+      console.log('Google User:', googleUser);
 
-      console.log(
-        'Google User:',
-        googleUser
-      );
-
-      // TEMP USER OBJECT
       const userData = {
         token: credentialResponse.credential,
         name: googleUser.name,
@@ -135,117 +107,63 @@ export default function AuthPage() {
         role: 'USER'
       };
 
-      // SAVE USER
-      localStorage.setItem(
-        'fd_user',
-        JSON.stringify(userData)
-      );
+      localStorage.setItem('fd_user', JSON.stringify(userData));
+      localStorage.setItem('fd_token', credentialResponse.credential);
 
-      localStorage.setItem(
-        'fd_token',
-        credentialResponse.credential
-      );
-
-      // OPTIONAL CONTEXT LOGIN
       if (login) {
-        login(
-          credentialResponse.credential,
-          userData
-        );
+        login(credentialResponse.credential, userData);
       }
 
       navigate('/');
-
     }
 
     catch (err) {
-
       console.error(err);
-
-      setError(
-        'Google login failed'
-      );
-
+      setError('Google login failed');
     }
   };
 
   return (
-
     <div style={styles.wrapper}>
-
       <div style={styles.card}>
 
-        {/* LOGO */}
         <div style={styles.logo}>
           🍽 FoodRush
         </div>
 
-        {/* TITLE */}
         <h2 style={styles.title}>
-
-          {
-            mode === 'login'
-              ? 'Welcome back'
-              : 'Create account'
-          }
-
+          {mode === 'login' && 'Welcome back'}
+          {mode === 'register' && 'Create account'}
+          {mode === 'forgot-password' && 'Reset Password'}
         </h2>
 
-        {/* SUBTITLE */}
         <p style={styles.subtitle}>
-
-          {
-            mode === 'login'
-              ? 'Sign in to order your favourite food'
-              : 'Join us and start ordering today'
-          }
-
+          {mode === 'login' && 'Sign in to order your favourite food'}
+          {mode === 'register' && 'Join us and start ordering today'}
+          {mode === 'forgot-password' && 'Enter your registered email to receive a recovery link'}
         </p>
 
-        {/* ERROR */}
-        {
-          error &&
-          <div style={styles.error}>
-            {error}
-          </div>
-        }
+        {error && <div style={styles.error}>{error}</div>}
 
-        {/* FORM */}
-        <form
-          onSubmit={handleSubmit}
-          style={styles.form}
-        >
+        {successMessage && <div style={styles.success}>{successMessage}</div>}
 
-          {/* NAME */}
-          {
-            mode === 'register' && (
+        <form onSubmit={handleSubmit} style={styles.form}>
 
-              <div style={styles.field}>
+          {mode === 'register' && (
+            <div style={styles.field}>
+              <label style={styles.label}>Full name</label>
+              <input
+                style={styles.input}
+                name="name"
+                value={form.name}
+                onChange={handleChange}
+                required
+              />
+            </div>
+          )}
 
-                <label style={styles.label}>
-                  Full name
-                </label>
-
-                <input
-                  style={styles.input}
-                  name="name"
-                  value={form.name}
-                  onChange={handleChange}
-                  required
-                />
-
-              </div>
-
-            )
-          }
-
-          {/* EMAIL */}
           <div style={styles.field}>
-
-            <label style={styles.label}>
-              Email
-            </label>
-
+            <label style={styles.label}>Email</label>
             <input
               style={styles.input}
               name="email"
@@ -254,72 +172,65 @@ export default function AuthPage() {
               onChange={handleChange}
               required
             />
-
           </div>
 
-          {/* PASSWORD */}
-          <div style={styles.field}>
+          {mode !== 'forgot-password' && (
+            <div style={styles.field}>
+              <label style={styles.label}>Password</label>
+              <input
+                style={styles.input}
+                name="password"
+                type="password"
+                value={form.password}
+                onChange={handleChange}
+                required
+              />
+            </div>
+          )}
 
-            <label style={styles.label}>
-              Password
-            </label>
+          {mode === 'login' && (
+            <div style={{ textAlign: 'right', marginBottom: 12 }}>
+              <button
+                type="button"
+                style={styles.linkBtn}
+                onClick={() => {
+                  setMode('forgot-password');
+                  setError('');
+                  setSuccessMessage('');
+                }}
+              >
+                Forgot Password?
+              </button>
+            </div>
+          )}
 
-            <input
-              style={styles.input}
-              name="password"
-              type="password"
-              value={form.password}
-              onChange={handleChange}
-              required
-            />
+          {mode === 'register' && (
+            <>
+              <div style={styles.field}>
+                <label style={styles.label}>Phone</label>
+                <input
+                  style={styles.input}
+                  name="phone"
+                  type="tel"
+                  value={form.phone}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
 
-          </div>
+              <div style={styles.field}>
+                <label style={styles.label}>Address</label>
+                <input
+                  style={styles.input}
+                  name="address"
+                  value={form.address}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            </>
+          )}
 
-          {/* PHONE + ADDRESS */}
-          {
-            mode === 'register' && (
-
-              <>
-
-                <div style={styles.field}>
-
-                  <label style={styles.label}>
-                    Phone
-                  </label>
-
-                  <input
-                    style={styles.input}
-                    name="phone"
-                    type="tel"
-                    value={form.phone}
-                    onChange={handleChange}
-                    required
-                  />
-
-                </div>
-
-                <div style={styles.field}>
-
-                  <label style={styles.label}>
-                    Address
-                  </label>
-
-                  <input
-                    style={styles.input}
-                    name="address"
-                    value={form.address}
-                    onChange={handleChange}
-                    required
-                  />
-
-                </div>
-
-              </>
-
-            )
-          }
-
-          {/* BUTTON */}
           <button
             type="submit"
             style={{
@@ -328,84 +239,62 @@ export default function AuthPage() {
             }}
             disabled={loading}
           >
-
-            {
-              loading
-                ? 'Please wait...'
-                : mode === 'login'
-                ? 'Sign in'
-                : 'Create account'
+            {loading
+              ? 'Please wait...'
+              : mode === 'login'
+              ? 'Sign in'
+              : mode === 'register'
+              ? 'Create account'
+              : 'Send Reset Link'
             }
-
           </button>
 
         </form>
 
-        {/* GOOGLE LOGIN */}
-        <div style={{ marginTop: '20px' }}>
+        {mode !== 'forgot-password' && (
+          <div style={{ marginTop: '20px' }}>
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => {
+                console.log('Google Login Failed');
+                setError('Google login failed');
+              }}
+            />
+          </div>
+        )}
 
-          <GoogleLogin
-
-            onSuccess={
-              handleGoogleSuccess
-            }
-
-            onError={() => {
-
-              console.log(
-                'Google Login Failed'
-              );
-
-              setError(
-                'Google login failed'
-              );
-
-            }}
-
-          />
-
-        </div>
-
-        {/* TOGGLE */}
         <p style={styles.toggle}>
-
-          {
-            mode === 'login'
-              ? "Don't have an account?"
-              : 'Already have an account?'
-          }
-
-          {' '}
-
-          <button
-            style={styles.linkBtn}
-            onClick={() => {
-
-              setMode(
-                mode === 'login'
-                  ? 'register'
-                  : 'login'
-              );
-
-              setError('');
-
-            }}
-          >
-
-            {
-              mode === 'login'
-                ? 'Sign up'
-                : 'Sign in'
-            }
-
-          </button>
-
+          {mode === 'forgot-password' ? (
+            <button
+              style={styles.linkBtn}
+              onClick={() => {
+                setMode('login');
+                setError('');
+                setSuccessMessage('');
+              }}
+            >
+              Back to Sign In
+            </button>
+          ) : (
+            <>
+              {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}
+              {' '}
+              <button
+                style={styles.linkBtn}
+                onClick={() => {
+                  setMode(mode === 'login' ? 'register' : 'login');
+                  setError('');
+                  setSuccessMessage('');
+                }}
+              >
+                {mode === 'login' ? 'Sign up' : 'Sign in'}
+              </button>
+            </>
+          )}
         </p>
 
       </div>
-
     </div>
-
   );
 }
 
@@ -434,12 +323,24 @@ const styles = {
   subtitle: {
     textAlign: 'center',
     fontSize: 12,
-    color: '#777'
+    color: '#777',
+    marginBottom: 10
   },
   error: {
     background: '#fdd',
+    color: '#900',
     padding: 10,
-    marginBottom: 10
+    marginBottom: 10,
+    fontSize: 13,
+    borderRadius: 4
+  },
+  success: {
+    background: '#dfd',
+    color: '#060',
+    padding: 10,
+    marginBottom: 10,
+    fontSize: 13,
+    borderRadius: 4
   },
   form: {
     display: 'flex',
